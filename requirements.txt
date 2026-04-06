@@ -1,0 +1,2 @@
+# Vercel installs from repo root; Flask app code lives in GradePointWeb/
+flask>=3.0.0

@@ -8,8 +8,11 @@ Production: gunicorn -c gunicorn.conf.py wsgi:app
 """
 
 import os
+from pathlib import Path
 
 from flask import Flask, flash, redirect, render_template, request, session, url_for
+
+_BASE_DIR = Path(__file__).resolve().parent
 
 from gradepoint_core import (
     GRADE_POINTS,
@@ -23,7 +26,7 @@ from gradepoint_core import (
     letter_minimum_percent,
 )
 
-app = Flask(__name__)
+app = Flask(__name__, template_folder=str(_BASE_DIR / "templates"))
 app.secret_key = os.environ.get("FLASK_SECRET_KEY", "dev-key-change-for-production")
 
 GRADE_ORDER = [
