@@ -1,0 +1,148 @@
+{% extends "base.html" %}
+{% block title %}GPA trends · GradePoint{% endblock %}
+{% block tagline %}See how term and cumulative GPA move across your plan.{% endblock %}
+
+{% block head %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+{% endblock %}
+
+{% block body %}
+<section class="page-intro">
+  <h2>GPA trends</h2>
+  <p>Charts update from graded courses in your 4-year plan. Add grades to light this up.</p>
+</section>
+
+<div class="panel">
+  <div class="stat-row">
+    <div>
+      <div class="stat-meta">Terms with grades</div>
+      <div class="stat-value" id="trend-terms">0</div>
+    </div>
+    <div>
+      <div class="stat-meta">Latest term GPA</div>
+      <div class="stat-value sky" id="trend-latest">—</div>
+    </div>
+    <div>
+      <div class="stat-meta">Cumulative</div>
+      <div class="stat-value coral" id="trend-cum">—</div>
+    </div>
+  </div>
+</div>
+
+<div class="panel">
+  <div class="panel-head">
+    <h3>Term vs cumulative</h3>
+    <span class="pill" id="trend-empty" hidden>No graded terms yet</span>
+  </div>
+  <div class="chart-wrap">
+    <canvas id="gpa-chart" aria-label="GPA trend chart"></canvas>
+  </div>
+</div>
+
+<div class="panel">
+  <h3>Term history</h3>
+  <div id="history-table"></div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function () {
+  const R = GradePointRecord;
+  let chart;
+
+  function render() {
+    const record = R.load();
+    const { history, cumulativeGpa } = R.analyze(record);
+    document.getElementById("trend-terms").textContent = history.length;
+    document.getElementById("trend-latest").textContent = history.length
+      ? R.formatGpa(history[history.length - 1].termGpa)
+      : "—";
+    document.getElementById("trend-cum").textContent = R.formatGpa(cumulativeGpa);
+    document.getElementById("trend-empty").hidden = history.length > 0;
+
+    const table = document.getElementById("history-table");
+    if (!history.length) {
+      table.innerHTML = `<p class="empty">Grade some courses on the 4-year plan (or This term) to build a trend line.</p>`;
+    } else {
+      table.innerHTML = `
+        <table>
+          <thead>
+            <tr><th>Term</th><th class="num">Term GPA</th><th class="num">Units</th><th class="num">Cumulative</th></tr>
+          </thead>
+          <tbody>
+            ${history.map((h) => `
+              <tr>
+                <td>${h.name}</td>
+                <td class="num">${R.formatGpa(h.termGpa)}</td>
+                <td class="num">${h.units.toFixed(1)}</td>
+                <td class="num">${R.formatGpa(h.cumulativeGpa)}</td>
+              </tr>
+            `).join("")}
+          </tbody>
+        </table>
+      `;
+    }
+
+    const labels = history.map((h) => h.name.replace(" · ", "\n"));
+    const termData = history.map((h) => Number(h.termGpa.toFixed(3)));
+    const cumData = history.map((h) => Number(h.cumulativeGpa.toFixed(3)));
+
+    const ctx = document.getElementById("gpa-chart").getContext("2d");
+    if (chart) chart.destroy();
+    chart = new Chart(ctx, {
+      type: "line",
+      data: {
+        labels: history.map((h) => h.name),
+        datasets: [
+          {
+            label: "Term GPA",
+            data: termData,
+            borderColor: "#e85d4c",
+            backgroundColor: "rgba(232, 93, 76, 0.12)",
+            tension: 0.35,
+            fill: false,
+            pointRadius: 5,
+            pointBackgroundColor: "#e85d4c",
+          },
+          {
+            label: "Cumulative GPA",
+            data: cumData,
+            borderColor: "#0f7a6c",
+            backgroundColor: "rgba(15, 122, 108, 0.1)",
+            tension: 0.35,
+            fill: true,
+            pointRadius: 5,
+            pointBackgroundColor: "#0f7a6c",
+          },
+        ],
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        interaction: { mode: "index", intersect: false },
+        plugins: {
+          legend: {
+            labels: { font: { family: "Figtree", weight: "600" }, color: "#14352f" },
+          },
+        },
+        scales: {
+          y: {
+            min: 0,
+            max: 4,
+            ticks: { stepSize: 0.5, font: { family: "Figtree" }, color: "#4d6b64" },
+            grid: { color: "rgba(197, 221, 214, 0.7)" },
+          },
+          x: {
+            ticks: { font: { family: "Figtree", size: 11 }, color: "#4d6b64", maxRotation: 45 },
+            grid: { display: false },
+          },
+        },
+      },
+    });
+  }
+
+  render();
+})();
+</script>
+{% endblock %}

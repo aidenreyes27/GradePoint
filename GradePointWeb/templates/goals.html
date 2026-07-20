@@ -1,0 +1,155 @@
+{% extends "base.html" %}
+{% block title %}Goals · GradePoint{% endblock %}
+{% block tagline %}Set a target GPA and see how close you are — plus what you need next term.{% endblock %}
+
+{% block body %}
+<section class="page-intro">
+  <h2>Goal tracking</h2>
+  <p>Your goal lives with your plan in this browser. Progress uses graded courses only.</p>
+</section>
+
+<div class="panel">
+  <h3>Target GPA</h3>
+  <form id="goal-form">
+    <div class="row cols-2">
+      <div>
+        <label for="target-gpa">Cumulative GPA goal</label>
+        <input type="number" id="target-gpa" step="0.01" min="0" max="4" required>
+      </div>
+      <div>
+        <label for="goal-note">Note (optional)</label>
+        <input type="text" id="goal-note" placeholder="e.g. Dean's list / grad school">
+      </div>
+    </div>
+    <button type="submit" class="primary">Save goal</button>
+  </form>
+</div>
+
+<div class="panel">
+  <div class="panel-head">
+    <h3>Progress</h3>
+    <span class="pill" id="status-pill">—</span>
+  </div>
+  <div class="stat-meta">Current cumulative</div>
+  <div class="goal-big" id="current-gpa">—</div>
+  <p id="status-msg" class="stat-meta" style="margin:0.5rem 0 0;"></p>
+  <div class="goal-meter" aria-hidden="true"><span id="goal-bar" style="width:0%"></span></div>
+  <div class="stat-row" style="margin-top:1rem;">
+    <div>
+      <div class="stat-meta">Target</div>
+      <div class="stat-value" style="font-size:1.5rem;" id="display-target">—</div>
+    </div>
+    <div>
+      <div class="stat-meta">Gap</div>
+      <div class="stat-value coral" style="font-size:1.5rem;" id="display-delta">—</div>
+    </div>
+    <div>
+      <div class="stat-meta">Units earned</div>
+      <div class="stat-value sky" style="font-size:1.5rem;" id="display-units">0</div>
+    </div>
+  </div>
+</div>
+
+<div class="panel">
+  <h3>What next term needs</h3>
+  <p class="empty" style="margin-bottom:0.85rem;">Estimate the term GPA required to hit your goal after upcoming credits.</p>
+  <form id="need-form">
+    <div class="row cols-2">
+      <div>
+        <label for="next-units">Next term units</label>
+        <input type="number" id="next-units" step="any" min="0.01" value="15" required>
+      </div>
+      <div style="display:flex;align-items:flex-end;">
+        <button type="submit" class="coral" style="width:100%;">Calculate</button>
+      </div>
+    </div>
+  </form>
+  <div id="need-result" class="scenario-out" hidden style="margin-top:1rem;margin-bottom:0;">
+    <h3>Required term GPA</h3>
+    <ul id="need-lines"></ul>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function () {
+  const R = GradePointRecord;
+
+  function render() {
+    const record = R.load();
+    const target = record.goal?.targetGpa ?? 3.5;
+    document.getElementById("target-gpa").value = target;
+    document.getElementById("goal-note").value = record.goal?.note || "";
+
+    const analysis = R.analyze(record);
+    const goal = R.goalStatus(record);
+    const currentEl = document.getElementById("current-gpa");
+    currentEl.textContent = R.formatGpa(goal.current);
+    currentEl.className = "goal-big status-" + goal.status;
+
+    document.getElementById("status-msg").textContent = goal.message + (record.goal?.note ? ` · ${record.goal.note}` : "");
+    document.getElementById("display-target").textContent = R.formatGpa(goal.target ?? target);
+    document.getElementById("display-delta").textContent =
+      goal.delta == null ? "—" : (goal.delta >= 0 ? "+" : "") + goal.delta.toFixed(2);
+    document.getElementById("display-units").textContent = analysis.totalUnits.toFixed(1);
+
+    const pill = document.getElementById("status-pill");
+    const labels = {
+      ahead: "Ahead",
+      behind: "Behind",
+      met: "On target",
+      no_data: "Need grades",
+      unset: "Set a goal",
+    };
+    pill.textContent = labels[goal.status] || goal.status;
+    pill.className = "pill " + (goal.status === "ahead" || goal.status === "met" ? "ok" : goal.status === "behind" ? "coral" : "");
+
+    const pct = goal.current == null || !goal.target
+      ? 0
+      : Math.max(0, Math.min(100, (goal.current / goal.target) * 100));
+    document.getElementById("goal-bar").style.width = pct + "%";
+  }
+
+  document.getElementById("goal-form").addEventListener("submit", (e) => {
+    e.preventDefault();
+    const record = R.load();
+    record.goal = {
+      targetGpa: parseFloat(document.getElementById("target-gpa").value),
+      note: document.getElementById("goal-note").value.trim(),
+    };
+    R.save(record);
+    render();
+    GP.showToast("Goal saved");
+  });
+
+  document.getElementById("need-form").addEventListener("submit", (e) => {
+    e.preventDefault();
+    const record = R.load();
+    const analysis = R.analyze(record);
+    const target = Number(record.goal?.targetGpa);
+    const nextUnits = parseFloat(document.getElementById("next-units").value);
+    const box = document.getElementById("need-result");
+    const lines = document.getElementById("need-lines");
+
+    if (!Number.isFinite(target)) {
+      lines.innerHTML = `<li>Save a target GPA first.</li>`;
+      box.hidden = false;
+      return;
+    }
+    const priorU = analysis.totalUnits || 0;
+    const priorG = analysis.cumulativeGpa || 0;
+    const req = R.requiredTermGpa(priorU, priorG, nextUnits, target);
+    const bits = [`You need about <strong>${req.toFixed(2)}</strong> GPA next term over ${nextUnits} units.`];
+    if (req > 4) bits.push("That is above 4.0 — try more units or a slightly lower target.");
+    else if (req < 0) bits.push("You already meet this goal even with a 0.0 next term (in this model).");
+    else if (req <= 2.0) bits.push("Comfortable cushion — stay consistent.");
+    else if (req >= 3.7) bits.push("Ambitious — lean on your strongest courses.");
+    lines.innerHTML = bits.map((b) => `<li>${b}</li>`).join("");
+    box.hidden = false;
+  });
+
+  render();
+})();
+</script>
+{% endblock %}

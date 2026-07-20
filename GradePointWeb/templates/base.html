@@ -6,185 +6,29 @@
   <title>{% block title %}GradePoint{% endblock %}</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&display=swap" rel="stylesheet">
-  <style>
-    :root {
-      --bg: #0f1419;
-      --surface: #1a222c;
-      --border: #2d3a47;
-      --text: #e8eef4;
-      --muted: #8b9bab;
-      --accent: #5eb8e8;
-      --accent-dim: #3d8eb8;
-      --ok: #6bcb8f;
-      --err: #e07a7a;
-      --radius: 10px;
-    }
-    * { box-sizing: border-box; }
-    body {
-      margin: 0;
-      min-height: 100vh;
-      font-family: "DM Sans", system-ui, sans-serif;
-      background: var(--bg);
-      color: var(--text);
-      line-height: 1.5;
-      font-size: 15px;
-    }
-    a { color: var(--accent); }
-    .wrap {
-      max-width: 720px;
-      margin: 0 auto;
-      padding: 1.5rem 1.25rem 3rem;
-    }
-    header {
-      margin-bottom: 2rem;
-      padding-bottom: 1rem;
-      border-bottom: 1px solid var(--border);
-    }
-    header h1 {
-      margin: 0;
-      font-size: 1.65rem;
-      font-weight: 700;
-      letter-spacing: -0.02em;
-    }
-    header p {
-      margin: 0.35rem 0 0;
-      color: var(--muted);
-      font-size: 0.95rem;
-    }
-    .card {
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: var(--radius);
-      padding: 1.25rem 1.35rem;
-      margin-bottom: 1.25rem;
-    }
-    .card h2 {
-      margin: 0 0 1rem;
-      font-size: 1.05rem;
-      font-weight: 600;
-      color: var(--text);
-    }
-    label {
-      display: block;
-      font-size: 0.8rem;
-      font-weight: 500;
-      color: var(--muted);
-      margin-bottom: 0.25rem;
-    }
-    input[type="text"],
-    input[type="number"],
-    select {
-      width: 100%;
-      padding: 0.5rem 0.65rem;
-      border-radius: 6px;
-      border: 1px solid var(--border);
-      background: var(--bg);
-      color: var(--text);
-      font-family: inherit;
-      font-size: 0.95rem;
-    }
-    input:focus, select:focus {
-      outline: none;
-      border-color: var(--accent-dim);
-      box-shadow: 0 0 0 2px rgba(94, 184, 232, 0.2);
-    }
-    .row {
-      display: grid;
-      gap: 0.75rem;
-      margin-bottom: 0.75rem;
-    }
-    @media (min-width: 520px) {
-      .row.cols-2 { grid-template-columns: 1fr 1fr; }
-      .row.cols-3 { grid-template-columns: 1fr 1fr 1fr; }
-    }
-    button, .btn {
-      font-family: inherit;
-      font-size: 0.9rem;
-      font-weight: 600;
-      padding: 0.45rem 0.9rem;
-      border-radius: 6px;
-      border: none;
-      cursor: pointer;
-      text-decoration: none;
-      display: inline-block;
-    }
-    button.primary, .btn.primary {
-      background: var(--accent);
-      color: #0a0e12;
-    }
-    button.primary:hover, .btn.primary:hover {
-      filter: brightness(1.08);
-    }
-    button.ghost, .btn.ghost {
-      background: transparent;
-      color: var(--muted);
-      border: 1px solid var(--border);
-    }
-    button.danger {
-      background: transparent;
-      color: var(--err);
-      border: 1px solid rgba(224, 122, 122, 0.45);
-      font-size: 0.8rem;
-      padding: 0.25rem 0.5rem;
-    }
-    .flash {
-      padding: 0.65rem 0.85rem;
-      border-radius: 6px;
-      margin-bottom: 1rem;
-      font-size: 0.9rem;
-    }
-    .flash.ok { background: rgba(107, 203, 143, 0.12); color: var(--ok); border: 1px solid rgba(107, 203, 143, 0.35); }
-    .flash.error { background: rgba(224, 122, 122, 0.1); color: var(--err); border: 1px solid rgba(224, 122, 122, 0.35); }
-    table {
-      width: 100%;
-      border-collapse: collapse;
-      font-size: 0.9rem;
-    }
-    th, td {
-      text-align: left;
-      padding: 0.5rem 0.4rem;
-      border-bottom: 1px solid var(--border);
-    }
-    th { color: var(--muted); font-weight: 500; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.04em; }
-    .stat {
-      font-size: 1.35rem;
-      font-weight: 700;
-      color: var(--accent);
-    }
-    .stat-label { font-size: 0.8rem; color: var(--muted); }
-    details.scenario {
-      border: 1px solid var(--border);
-      border-radius: 8px;
-      padding: 0.65rem 1rem;
-      margin-bottom: 0.6rem;
-      background: rgba(0,0,0,0.15);
-    }
-    details.scenario summary {
-      cursor: pointer;
-      font-weight: 600;
-      font-size: 0.92rem;
-    }
-    details.scenario[open] summary { margin-bottom: 0.75rem; }
-    .scenario-out {
-      background: rgba(94, 184, 232, 0.08);
-      border: 1px solid rgba(94, 184, 232, 0.25);
-      border-radius: 8px;
-      padding: 0.85rem 1rem;
-      margin-top: 1rem;
-    }
-    .scenario-out h3 { margin: 0 0 0.5rem; font-size: 0.95rem; }
-    .scenario-out ul { margin: 0; padding-left: 1.1rem; }
-    .inline-actions { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; }
-    hr.soft { border: none; border-top: 1px solid var(--border); margin: 1rem 0; }
-  </style>
+  <link href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700&family=Fraunces:opsz,wght@9..144,600;9..144,700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+  {% block head %}{% endblock %}
 </head>
 <body>
-  <div class="wrap">
-    <header>
-      <h1>GradePoint</h1>
-      <p>Term GPA, cumulative estimates, and grade scenarios in the browser.</p>
+  <div class="site">
+    <header class="topbar">
+      <div class="brand">
+        <a class="brand-mark" href="{{ url_for('index') }}">
+          <span class="brand-dot" aria-hidden="true"></span>
+          <h1 class="brand-name">GradePoint</h1>
+        </a>
+        <p class="brand-tag">{% block tagline %}Plan terms, track your GPA, and map four years — clean and colorful.{% endblock %}</p>
+      </div>
+      <nav class="main-nav" aria-label="Main">
+        <a href="{{ url_for('index') }}" class="{{ 'active' if nav == 'term' else '' }}">This term</a>
+        <a href="{{ url_for('plan') }}" class="{{ 'active' if nav == 'plan' else '' }}">4-year plan</a>
+        <a href="{{ url_for('trends') }}" class="{{ 'active' if nav == 'trends' else '' }}">Trends</a>
+        <a href="{{ url_for('goals') }}" class="{{ 'active' if nav == 'goals' else '' }}">Goals</a>
+        <a href="{{ url_for('transcript') }}" class="{{ 'active' if nav == 'transcript' else '' }}">Transcript</a>
+      </nav>
     </header>
+
     {% with messages = get_flashed_messages(with_categories=true) %}
       {% if messages %}
         {% for cat, msg in messages %}
@@ -192,7 +36,24 @@
         {% endfor %}
       {% endif %}
     {% endwith %}
+
     {% block body %}{% endblock %}
   </div>
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+  <script src="{{ url_for('static', filename='record.js') }}"></script>
+  <script>
+    window.GP = {
+      gradeOrder: {{ grade_order | tojson }},
+      showToast(msg) {
+        const el = document.getElementById("toast");
+        if (!el) return;
+        el.textContent = msg;
+        el.classList.add("show");
+        clearTimeout(window.__gpToast);
+        window.__gpToast = setTimeout(() => el.classList.remove("show"), 2200);
+      }
+    };
+  </script>
+  {% block scripts %}{% endblock %}
 </body>
 </html>

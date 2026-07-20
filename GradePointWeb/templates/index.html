@@ -1,130 +1,76 @@
 {% extends "base.html" %}
+{% block title %}This term · GradePoint{% endblock %}
+{% block tagline %}Add classes for the active term and run quick grade scenarios.{% endblock %}
 
 {% block body %}
-
-{% if scenario_display %}
-<div class="scenario-out">
-  <h3>{{ scenario_display.title }}</h3>
-  <ul>
-    {% for line in scenario_display.lines %}
-    <li>{{ line }}</li>
-    {% endfor %}
-  </ul>
-</div>
-{% endif %}
-
-<div class="card">
+<section class="page-intro">
   <h2>This term</h2>
-  {% if classes|length == 0 %}
-  <p style="color: var(--muted); margin: 0;">No classes yet. Add one below.</p>
-  {% else %}
-  <p style="margin: 0 0 0.5rem;"><span class="stat">{{ "%.2f"|format(term_gpa) }}</span> <span class="stat-label">GPA · {{ "%.1f"|format(term_units) }} units</span></p>
-  {% endif %}
+  <p>Classes here sync with your <a href="{{ url_for('plan') }}">4-year plan</a>. Pick which term is active below.</p>
+</section>
+
+<div class="panel hero-gpa">
+  <div>
+    <div class="stat-meta">Term GPA</div>
+    <div class="stat-row" style="margin-top:0.35rem;">
+      <span class="stat-value" id="term-gpa">—</span>
+      <span class="stat-meta" id="term-units">0 units</span>
+    </div>
+  </div>
+  <div>
+    <label for="active-term">Active term</label>
+    <select id="active-term"></select>
+  </div>
 </div>
 
-<div class="card">
-  <h2>Your classes</h2>
-  {% if classes|length > 0 %}
-    {% for c in classes %}
-    <div style="padding: 1rem 0; border-bottom: 1px solid var(--border);">
-      <p style="margin: 0 0 0.75rem; font-size: 0.8rem; color: var(--muted);">Class {{ loop.index }}</p>
-      <form action="{{ url_for('update_class', i=loop.index0) }}" method="post" style="margin:0;">
-        <div class="row cols-3">
-          <div>
-            <label>Name</label>
-            <input type="text" name="name" value="{{ c.name }}" required>
-          </div>
-          <div>
-            <label>Units</label>
-            <input type="number" name="units" step="any" min="0.01" value="{{ c.units }}" required>
-          </div>
-          <div>
-            <label>Letter grade</label>
-            <select name="grade_letter">
-              <option value="">—</option>
-              {% for g in grade_order %}
-              <option value="{{ g }}" {% if c.grade == g %}selected{% endif %}>{{ g }}</option>
-              {% endfor %}
-            </select>
-          </div>
-        </div>
-        <div class="row">
-          <div>
-            <label>Or use % instead of letter (optional)</label>
-            <input type="number" name="grade_percent" step="0.1" min="0" max="100" placeholder="e.g. 88">
-          </div>
-        </div>
-        <div class="inline-actions">
-          <button type="submit" class="primary">Save</button>
-        </div>
-      </form>
-      <form action="{{ url_for('delete_class', i=loop.index0) }}" method="post" style="margin-top:0.5rem;">
-        <button type="submit" class="danger">Remove</button>
-      </form>
-    </div>
-    {% endfor %}
-  {% endif %}
+<div id="scenario-out" class="scenario-out" hidden>
+  <h3 id="scenario-title"></h3>
+  <ul id="scenario-lines"></ul>
+</div>
 
+<div class="panel">
+  <div class="panel-head">
+    <h3>Your classes</h3>
+    <button type="button" class="ghost" id="clear-term">Clear term</button>
+  </div>
+  <div id="class-list"></div>
   <hr class="soft">
-
-  <h2 style="margin-top:0;">Add a class</h2>
-  <form action="{{ url_for('add_class') }}" method="post">
+  <h3 style="margin-top:0;">Add a class</h3>
+  <form id="add-form">
     <div class="row cols-2">
       <div>
-        <label>Class name</label>
-        <input type="text" name="name" placeholder="e.g. Calculus II">
+        <label for="add-name">Class name</label>
+        <input type="text" id="add-name" placeholder="e.g. Calculus II">
       </div>
       <div>
-        <label>Units</label>
-        <input type="number" name="units" step="any" min="0.01" required>
+        <label for="add-units">Units</label>
+        <input type="number" id="add-units" step="any" min="0.01" required>
       </div>
     </div>
     <div class="row cols-2">
       <div>
-        <label>Letter grade</label>
-        <select name="grade_letter">
-          <option value="">—</option>
-          {% for g in grade_order %}
-          <option value="{{ g }}">{{ g }}</option>
-          {% endfor %}
+        <label for="add-letter">Letter grade</label>
+        <select id="add-letter">
+          <option value="">— planned / no grade yet —</option>
         </select>
       </div>
       <div>
-        <label>Or course % (0–100)</label>
-        <input type="number" name="grade_percent" step="0.1" min="0" max="100" placeholder="optional">
+        <label for="add-percent">Or course % (0–100)</label>
+        <input type="number" id="add-percent" step="0.1" min="0" max="100" placeholder="optional">
       </div>
     </div>
     <button type="submit" class="primary">Add class</button>
   </form>
 </div>
 
-<div class="card">
-  <h2>Cumulative GPA (quality points)</h2>
-  <p style="color: var(--muted); font-size: 0.9rem; margin: 0 0 1rem;">Uses your class list for this term plus prior totals. Quality points = sum of (grade points × units).</p>
-  <form action="{{ url_for('cumulative') }}" method="post">
-    <div class="row cols-2">
-      <div>
-        <label>Previous total units</label>
-        <input type="number" name="old_units" step="any" min="0" required>
-      </div>
-      <div>
-        <label>Previous total quality points</label>
-        <input type="number" name="old_quality_points" step="any" required>
-      </div>
-    </div>
-    <button type="submit" class="primary">Calculate cumulative</button>
-  </form>
-</div>
-
-<div class="card">
-  <h2>Grade scenarios</h2>
+<div class="panel">
+  <h3>Grade scenarios</h3>
 
   <details class="scenario">
     <summary>Score needed on final (weighted %)</summary>
-    <form action="{{ url_for('scenario_final') }}" method="post">
+    <form id="sc-final">
       <div class="row cols-2">
-        <div><label>Current average in class (%)</label><input type="number" name="current_avg" step="0.1" required></div>
-        <div><label>Target overall in class (%)</label><input type="number" name="target_pct" step="0.1" required></div>
+        <div><label>Current average (%)</label><input type="number" name="current_avg" step="0.1" required></div>
+        <div><label>Target overall (%)</label><input type="number" name="target_pct" step="0.1" required></div>
       </div>
       <div class="row cols-2">
         <div><label>Weight: graded so far</label><input type="number" name="w_done" step="any" min="0.01" required></div>
@@ -136,9 +82,9 @@
 
   <details class="scenario">
     <summary>Term GPA needed for a cumulative target</summary>
-    <form action="{{ url_for('scenario_term_target') }}" method="post">
+    <form id="sc-term-target">
       <div class="row cols-2">
-        <div><label>Prior units (before this term)</label><input type="number" name="prior_units" step="any" min="0" required></div>
+        <div><label>Prior units</label><input type="number" name="prior_units" step="any" min="0" required></div>
         <div><label>Prior cumulative GPA</label><input type="number" name="prior_gpa" step="0.01" required></div>
       </div>
       <div class="row cols-2">
@@ -150,65 +96,248 @@
   </details>
 
   <details class="scenario">
-    <summary>Projected cumulative (uses your list + prior GPA)</summary>
-    <form action="{{ url_for('scenario_projected') }}" method="post">
-      <div class="row cols-2">
-        <div><label>Prior units</label><input type="number" name="proj_prior_units" step="any" min="0" required></div>
-        <div><label>Prior cumulative GPA</label><input type="number" name="proj_prior_gpa" step="0.01" required></div>
-      </div>
-      <button type="submit" class="primary">Calculate</button>
-    </form>
-  </details>
-
-  <details class="scenario">
     <summary>What-if: swap one class to another grade</summary>
-    {% if classes|length == 0 %}
-    <p style="color: var(--muted);">Add classes first.</p>
-    {% else %}
-    <form action="{{ url_for('scenario_whatif') }}" method="post">
+    <form id="sc-whatif">
       <div class="row cols-2">
         <div>
           <label>Class</label>
-          <select name="whatif_index" required>
-            {% for c in classes %}
-            <option value="{{ loop.index }}">{{ loop.index }}. {{ c.name }} ({{ c.grade }})</option>
-            {% endfor %}
-          </select>
+          <select name="whatif_index" id="whatif-index" required></select>
         </div>
         <div>
           <label>New letter grade</label>
-          <select name="whatif_letter" required>
-            {% for g in grade_order %}
-            <option value="{{ g }}">{{ g }}</option>
-            {% endfor %}
-          </select>
+          <select name="whatif_letter" id="whatif-letter" required></select>
         </div>
       </div>
       <button type="submit" class="primary">Calculate</button>
     </form>
-    {% endif %}
-  </details>
-
-  <details class="scenario">
-    <summary>Minimum course % for a letter</summary>
-    <form action="{{ url_for('scenario_min_pct') }}" method="post">
-      <div class="row">
-        <div>
-          <label>Letter</label>
-          <select name="min_letter" required>
-            {% for g in grade_order %}
-            <option value="{{ g }}">{{ g }}</option>
-            {% endfor %}
-          </select>
-        </div>
-      </div>
-      <button type="submit" class="primary">Look up</button>
-    </form>
   </details>
 </div>
+{% endblock %}
 
-<form action="{{ url_for('reset') }}" method="post" onsubmit="return confirm('Clear all classes from this session?');">
-  <button type="submit" class="ghost">Clear all classes</button>
-</form>
+{% block scripts %}
+<script>
+(function () {
+  const R = GradePointRecord;
+  const letterSelect = document.getElementById("add-letter");
+  const whatifLetter = document.getElementById("whatif-letter");
+  GP.gradeOrder.forEach((g) => {
+    letterSelect.insertAdjacentHTML("beforeend", `<option value="${g}">${g}</option>`);
+    whatifLetter.insertAdjacentHTML("beforeend", `<option value="${g}">${g}</option>`);
+  });
 
+  function percentToLetter(p) {
+    if (p >= 93) return "A";
+    if (p >= 90) return "A-";
+    if (p >= 87) return "B+";
+    if (p >= 83) return "B";
+    if (p >= 80) return "B-";
+    if (p >= 77) return "C+";
+    if (p >= 73) return "C";
+    if (p >= 70) return "C-";
+    if (p >= 67) return "D+";
+    if (p >= 63) return "D";
+    if (p >= 60) return "D-";
+    return "F";
+  }
+
+  function showScenario(title, lines) {
+    const box = document.getElementById("scenario-out");
+    document.getElementById("scenario-title").textContent = title;
+    const ul = document.getElementById("scenario-lines");
+    ul.innerHTML = lines.map((l) => `<li>${l}</li>`).join("");
+    box.hidden = false;
+    box.scrollIntoView({ behavior: "smooth", block: "nearest" });
+  }
+
+  function render() {
+    const record = R.load();
+    const terms = R.allTerms(record);
+    const sel = document.getElementById("active-term");
+    sel.innerHTML = terms.map((t) =>
+      `<option value="${t.id}" ${t.id === record.activeTermId ? "selected" : ""}>${t.name}</option>`
+    ).join("");
+
+    const term = R.activeTerm(record);
+    const stats = R.calculateTermGpa(term?.classes || []);
+    document.getElementById("term-gpa").textContent = stats.gradedCount ? R.formatGpa(stats.gpa) : "—";
+    document.getElementById("term-units").textContent = `${stats.units.toFixed(1)} graded units`;
+
+    const list = document.getElementById("class-list");
+    const classes = term?.classes || [];
+    if (!classes.length) {
+      list.innerHTML = `<p class="empty">No classes yet. Add one below — or map them on the 4-year plan.</p>`;
+    } else {
+      list.innerHTML = classes.map((c, i) => `
+        <div class="class-item" data-i="${i}">
+          <span class="class-badge">${c.grade || "Planned"}</span>
+          <div class="row cols-3">
+            <div>
+              <label>Name</label>
+              <input type="text" class="edit-name" value="${(c.name || "").replace(/"/g, "&quot;")}">
+            </div>
+            <div>
+              <label>Units</label>
+              <input type="number" class="edit-units" step="any" min="0.01" value="${c.units}">
+            </div>
+            <div>
+              <label>Letter</label>
+              <select class="edit-grade">
+                <option value="">—</option>
+                ${GP.gradeOrder.map((g) => `<option value="${g}" ${c.grade === g ? "selected" : ""}>${g}</option>`).join("")}
+              </select>
+            </div>
+          </div>
+          <div class="inline-actions" style="margin-top:0.5rem;">
+            <button type="button" class="primary save-class">Save</button>
+            <button type="button" class="danger remove-class">Remove</button>
+          </div>
+        </div>
+      `).join("");
+    }
+
+    const wi = document.getElementById("whatif-index");
+    const graded = classes.filter((c) => c.grade);
+    if (!graded.length) {
+      wi.innerHTML = `<option value="">Add graded classes first</option>`;
+    } else {
+      wi.innerHTML = classes.map((c, i) =>
+        c.grade ? `<option value="${i}">${i + 1}. ${c.name || "Class"} (${c.grade})</option>` : ""
+      ).join("");
+    }
+  }
+
+  document.getElementById("active-term").addEventListener("change", (e) => {
+    const record = R.load();
+    record.activeTermId = e.target.value;
+    R.save(record);
+    render();
+    GP.showToast("Active term updated");
+  });
+
+  document.getElementById("add-form").addEventListener("submit", (e) => {
+    e.preventDefault();
+    const record = R.load();
+    const term = R.activeTerm(record);
+    if (!term) return;
+
+    const name = document.getElementById("add-name").value.trim() || "Untitled Class";
+    const units = parseFloat(document.getElementById("add-units").value);
+    if (!(units > 0)) {
+      GP.showToast("Units must be greater than 0");
+      return;
+    }
+
+    let grade = document.getElementById("add-letter").value || null;
+    const pct = document.getElementById("add-percent").value;
+    if (pct !== "") {
+      const p = parseFloat(pct);
+      if (Number.isNaN(p) || p < 0 || p > 100) {
+        GP.showToast("Percentage must be 0–100");
+        return;
+      }
+      grade = percentToLetter(p);
+    }
+
+    term.classes.push({ name, units, grade });
+    R.save(record);
+    e.target.reset();
+    render();
+    GP.showToast("Class added");
+  });
+
+  document.getElementById("class-list").addEventListener("click", (e) => {
+    const item = e.target.closest(".class-item");
+    if (!item) return;
+    const i = Number(item.dataset.i);
+    const record = R.load();
+    const term = R.activeTerm(record);
+    if (!term) return;
+
+    if (e.target.classList.contains("remove-class")) {
+      term.classes.splice(i, 1);
+      R.save(record);
+      render();
+      GP.showToast("Class removed");
+      return;
+    }
+    if (e.target.classList.contains("save-class")) {
+      const name = item.querySelector(".edit-name").value.trim();
+      const units = parseFloat(item.querySelector(".edit-units").value);
+      const grade = item.querySelector(".edit-grade").value || null;
+      if (!(units > 0)) {
+        GP.showToast("Units must be greater than 0");
+        return;
+      }
+      term.classes[i] = { name: name || "Untitled Class", units, grade };
+      R.save(record);
+      render();
+      GP.showToast("Class saved");
+    }
+  });
+
+  document.getElementById("clear-term").addEventListener("click", () => {
+    if (!confirm("Clear all classes from this term?")) return;
+    const record = R.load();
+    const term = R.activeTerm(record);
+    if (term) term.classes = [];
+    R.save(record);
+    render();
+    GP.showToast("Term cleared");
+  });
+
+  document.getElementById("sc-final").addEventListener("submit", (e) => {
+    e.preventDefault();
+    const fd = new FormData(e.target);
+    const current = parseFloat(fd.get("current_avg"));
+    const target = parseFloat(fd.get("target_pct"));
+    const wDone = parseFloat(fd.get("w_done"));
+    const wLeft = parseFloat(fd.get("w_left"));
+    const sum = wDone + wLeft;
+    const needed = (target - current * (wDone / sum)) / (wLeft / sum);
+    const lines = [
+      `You need ${needed.toFixed(1)}% on the remaining (${wLeft}-weighted) part.`,
+      `(So far: ${wDone} at ${current.toFixed(1)}%.)`,
+    ];
+    if (needed > 100) lines.push("That is above 100% — target may not be reachable.");
+    else if (needed < 0) lines.push("You can score below 0% and still hit the target (in this model).");
+    else lines.push(`Rough letter if that were the whole course: ${percentToLetter(needed)}`);
+    showScenario("Score needed on final", lines);
+  });
+
+  document.getElementById("sc-term-target").addEventListener("submit", (e) => {
+    e.preventDefault();
+    const fd = new FormData(e.target);
+    const priorU = parseFloat(fd.get("prior_units"));
+    const priorG = parseFloat(fd.get("prior_gpa"));
+    const termU = parseFloat(fd.get("term_units"));
+    const target = parseFloat(fd.get("target_cumulative"));
+    const req = R.requiredTermGpa(priorU, priorG, termU, target);
+    const lines = [`Required term GPA: ${req.toFixed(2)}`];
+    if (req > 4) lines.push("Above a 4.0 — not achievable with straight As.");
+    else if (req < 0) lines.push("Prior GPA already meets or exceeds that target.");
+    else lines.push("Average needed across this term’s credits.");
+    showScenario("Term GPA for cumulative target", lines);
+  });
+
+  document.getElementById("sc-whatif").addEventListener("submit", (e) => {
+    e.preventDefault();
+    const record = R.load();
+    const term = R.activeTerm(record);
+    const idx = parseInt(document.getElementById("whatif-index").value, 10);
+    const letter = document.getElementById("whatif-letter").value;
+    if (!term || Number.isNaN(idx) || !term.classes[idx]) {
+      GP.showToast("Choose a class");
+      return;
+    }
+    const oldStats = R.calculateTermGpa(term.classes);
+    const modified = term.classes.map((c, i) => (i === idx ? { ...c, grade: letter } : c));
+    const newStats = R.calculateTermGpa(modified);
+    showScenario("What-if grade", [
+      `Term GPA would go from ${R.formatGpa(oldStats.gpa)} to ${R.formatGpa(newStats.gpa)}.`,
+    ]);
+  });
+
+  render();
+})();
+</script>
 {% endblock %}

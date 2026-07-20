@@ -220,3 +220,89 @@ def compute_cumulative_from_quality_points(old_units, old_quality_points, classe
         "cumulative": all_qp / all_units,
         "all_units": all_units,
     }
+
+
+def graded_classes(classes):
+    """Classes that have a letter grade (planned courses may omit grade)."""
+    out = []
+    for c in classes:
+        grade = c.get("grade")
+        if grade and str(grade).strip() and str(grade).strip().upper() in GRADE_POINTS:
+            out.append({**c, "grade": str(grade).strip().upper()})
+    return out
+
+
+def analyze_terms(terms):
+    """
+    terms: list of {name, classes: [{name, units, grade?}]}
+    Returns term-by-term GPAs, running cumulative, and totals.
+    """
+    history = []
+    run_units = 0.0
+    run_qp = 0.0
+
+    for term in terms:
+        name = term.get("name") or "Term"
+        graded = graded_classes(term.get("classes") or [])
+        if not graded:
+            continue
+        gpa, units, qp = calculate_term_gpa(graded)
+        run_units += units
+        run_qp += qp
+        cumulative = (run_qp / run_units) if run_units else 0.0
+        history.append(
+            {
+                "name": name,
+                "term_gpa": round(gpa, 3),
+                "units": units,
+                "quality_points": qp,
+                "cumulative_gpa": round(cumulative, 3),
+                "class_count": len(graded),
+            }
+        )
+
+    return {
+        "history": history,
+        "cumulative_gpa": round(run_qp / run_units, 3) if run_units else None,
+        "total_units": run_units,
+        "total_quality_points": run_qp,
+    }
+
+
+def goal_progress(cumulative_gpa, target_gpa, total_units=0):
+    if target_gpa is None:
+        return {"ok": False, "error": "Set a target GPA."}
+    try:
+        target = float(target_gpa)
+    except (TypeError, ValueError):
+        return {"ok": False, "error": "Invalid target GPA."}
+    if not 0 <= target <= 4.0:
+        return {"ok": False, "error": "Target GPA should be between 0 and 4.0."}
+
+    if cumulative_gpa is None or total_units <= 0:
+        return {
+            "ok": True,
+            "target": target,
+            "current": None,
+            "delta": None,
+            "status": "no_data",
+            "message": "Add graded courses to start tracking your goal.",
+        }
+
+    current = float(cumulative_gpa)
+    delta = current - target
+    if abs(delta) < 0.005:
+        status, message = "met", "You are right on your goal GPA."
+    elif delta >= 0:
+        status, message = "ahead", f"You are {delta:.2f} points above your goal."
+    else:
+        status, message = "behind", f"You are {abs(delta):.2f} points below your goal."
+
+    return {
+        "ok": True,
+        "target": target,
+        "current": round(current, 3),
+        "delta": round(delta, 3),
+        "status": status,
+        "message": message,
+    }

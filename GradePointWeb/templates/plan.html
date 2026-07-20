@@ -1,0 +1,196 @@
+{% extends "base.html" %}
+{% block title %}4-year plan · GradePoint{% endblock %}
+{% block tagline %}Map Fall and Spring across four years. Grades optional until you earn them.{% endblock %}
+
+{% block body %}
+<section class="page-intro">
+  <h2>4-year plan</h2>
+  <p>Sketch courses ahead of time, then fill in grades as you go. Set a term active to edit it on This term.</p>
+</section>
+
+<div class="panel">
+  <div class="panel-head">
+    <h3>Overview</h3>
+    <div class="inline-actions">
+      <button type="button" class="ghost" id="export-btn">Export JSON</button>
+      <label class="btn ghost" style="cursor:pointer;margin:0;">
+        Import
+        <input type="file" id="import-file" accept="application/json,.json" hidden>
+      </label>
+      <button type="button" class="danger" id="reset-plan">Reset plan</button>
+    </div>
+  </div>
+  <div class="stat-row">
+    <div>
+      <div class="stat-meta">Planned courses</div>
+      <div class="stat-value sky" id="plan-count">0</div>
+    </div>
+    <div>
+      <div class="stat-meta">Planned units</div>
+      <div class="stat-value" id="plan-units">0</div>
+    </div>
+    <div>
+      <div class="stat-meta">Cumulative GPA</div>
+      <div class="stat-value coral" id="plan-gpa">—</div>
+    </div>
+  </div>
+</div>
+
+<div id="year-grid" class="year-grid"></div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function () {
+  const R = GradePointRecord;
+
+  function gradeOptions(selected) {
+    const opts = [`<option value="">—</option>`];
+    GP.gradeOrder.forEach((g) => {
+      opts.push(`<option value="${g}" ${selected === g ? "selected" : ""}>${g}</option>`);
+    });
+    return opts.join("");
+  }
+
+  function render() {
+    const record = R.load();
+    const planned = R.plannedUnits(record);
+    const analysis = R.analyze(record);
+    document.getElementById("plan-count").textContent = planned.count;
+    document.getElementById("plan-units").textContent = planned.units.toFixed(1);
+    document.getElementById("plan-gpa").textContent = R.formatGpa(analysis.cumulativeGpa);
+
+    const grid = document.getElementById("year-grid");
+    grid.innerHTML = record.years.map((year) => `
+      <div class="year-block panel" style="margin:0;animation:none;">
+        <h4>${year.label}</h4>
+        ${(year.terms || []).map((term) => {
+          const stats = R.calculateTermGpa(term.classes);
+          const active = term.id === record.activeTermId;
+          return `
+            <div class="term-chip ${active ? "active" : ""}" data-term="${term.id}">
+              <header>
+                <strong>${term.season}</strong>
+                <div class="inline-actions">
+                  ${stats.gradedCount ? `<span class="pill teal">${R.formatGpa(stats.gpa)} GPA</span>` : `<span class="pill">Planned</span>`}
+                  <button type="button" class="ghost set-active" style="padding:0.25rem 0.55rem;font-size:0.75rem;">${active ? "Active" : "Set active"}</button>
+                </div>
+              </header>
+              <div class="term-courses">
+                ${(term.classes || []).map((c, i) => `
+                  <div class="course-row" data-i="${i}">
+                    <input type="text" class="c-name" value="${(c.name || "").replace(/"/g, "&quot;")}" placeholder="Course">
+                    <input type="number" class="units c-units" step="any" min="0.01" value="${c.units}" title="Units">
+                    <select class="grade c-grade" title="Grade">${gradeOptions(c.grade)}</select>
+                    <button type="button" class="danger c-del" title="Remove">×</button>
+                  </div>
+                `).join("")}
+              </div>
+              <div class="inline-actions" style="margin-top:0.45rem;">
+                <button type="button" class="primary add-course" style="font-size:0.8rem;padding:0.35rem 0.65rem;">+ Course</button>
+              </div>
+            </div>
+          `;
+        }).join("")}
+      </div>
+    `).join("");
+  }
+
+  function termFromEl(el) {
+    const chip = el.closest(".term-chip");
+    if (!chip) return null;
+    const record = R.load();
+    return { record, term: R.findTerm(record, chip.dataset.term), chip };
+  }
+
+  document.getElementById("year-grid").addEventListener("click", (e) => {
+    const ctx = termFromEl(e.target);
+    if (!ctx || !ctx.term) return;
+    const { record, term } = ctx;
+
+    if (e.target.classList.contains("set-active")) {
+      record.activeTermId = term.id;
+      R.save(record);
+      render();
+      GP.showToast(`${term.name} is active`);
+      return;
+    }
+    if (e.target.classList.contains("add-course")) {
+      term.classes.push({ name: "", units: 3, grade: null });
+      R.save(record);
+      render();
+      return;
+    }
+    if (e.target.classList.contains("c-del")) {
+      const row = e.target.closest(".course-row");
+      const i = Number(row.dataset.i);
+      term.classes.splice(i, 1);
+      R.save(record);
+      render();
+    }
+  });
+
+  document.getElementById("year-grid").addEventListener("change", (e) => {
+    if (!e.target.classList.contains("c-name") &&
+        !e.target.classList.contains("c-units") &&
+        !e.target.classList.contains("c-grade")) return;
+    const ctx = termFromEl(e.target);
+    if (!ctx || !ctx.term) return;
+    const { record, term } = ctx;
+    const row = e.target.closest(".course-row");
+    const i = Number(row.dataset.i);
+    const units = parseFloat(row.querySelector(".c-units").value);
+    term.classes[i] = {
+      name: row.querySelector(".c-name").value.trim() || "Untitled",
+      units: units > 0 ? units : 3,
+      grade: row.querySelector(".c-grade").value || null,
+    };
+    R.save(record);
+    // Refresh overview numbers without full re-render flicker on every keystroke — change is fine
+    const planned = R.plannedUnits(record);
+    const analysis = R.analyze(record);
+    document.getElementById("plan-count").textContent = planned.count;
+    document.getElementById("plan-units").textContent = planned.units.toFixed(1);
+    document.getElementById("plan-gpa").textContent = R.formatGpa(analysis.cumulativeGpa);
+    const stats = R.calculateTermGpa(term.classes);
+    const pill = ctx.chip.querySelector(".pill");
+    if (pill) {
+      pill.className = stats.gradedCount ? "pill teal" : "pill";
+      pill.textContent = stats.gradedCount ? `${R.formatGpa(stats.gpa)} GPA` : "Planned";
+    }
+  });
+
+  document.getElementById("reset-plan").addEventListener("click", () => {
+    if (!confirm("Reset the entire 4-year plan? This clears all courses stored in this browser.")) return;
+    R.reset();
+    render();
+    GP.showToast("Plan reset");
+  });
+
+  document.getElementById("export-btn").addEventListener("click", () => {
+    const blob = new Blob([R.exportJson(R.load())], { type: "application/json" });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = "gradepoint-plan.json";
+    a.click();
+    URL.revokeObjectURL(a.href);
+  });
+
+  document.getElementById("import-file").addEventListener("change", async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    try {
+      const text = await file.text();
+      R.importJson(text);
+      render();
+      GP.showToast("Plan imported");
+    } catch {
+      GP.showToast("Could not import that file");
+    }
+    e.target.value = "";
+  });
+
+  render();
+})();
+</script>
+{% endblock %}
